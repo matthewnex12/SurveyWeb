@@ -12,12 +12,12 @@ if (!isset($_SESSION['user_id'])) {
 $errorMessage = "";
 
 // Handling form submission
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["survey_title"])) {
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["title"])) {
     // Begin database transaction
     $mysqli->begin_transaction();
 
     try {
-        $surveyTitle = $mysqli->real_escape_string(trim($_POST["survey_title"]));
+        $surveyTitle = $mysqli->real_escape_string(trim($_POST["title"]));
         $creator_id = $_SESSION['user_id'];  // Assumes this is correctly set during login
 
         // Insert survey
@@ -30,31 +30,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["survey_title"])) {
 
             // Insert questions and associated answers
             if (isset($_POST['questions'])) {
-                foreach ($_POST['questions'] as $index => $questionText) {
+                foreach ($_POST['questions'] as $question) {
+                    $questionText = $question['question'];
                     $insertQuestionSql = "INSERT INTO Questions (survey_id, text) VALUES (?, ?)";
                     if ($questionStmt = $mysqli->prepare($insertQuestionSql)) {
                         $questionStmt->bind_param("is", $survey_id, $questionText);
                         $questionStmt->execute();
                         $question_id = $mysqli->insert_id; // ID of newly inserted question
-
-                        // Assuming there are multiple answers per question
-                        foreach ($_POST['answers'][$index] as $answerText) {
-                            $insertAnswerSql = "INSERT INTO Answers (question_id, text) VALUES (?, ?)";
-                            if ($answerStmt = $mysqli->prepare($insertAnswerSql)) {
-                                $answerStmt->bind_param("is", $question_id, $answerText);
-                                $answerStmt->execute();
-                                $answerStmt->close();
-                            }
-                        }
                         $questionStmt->close();
+
+                        // Insert answers for each question
+                        if (isset($question['answers'])) {
+                            foreach ($question['answers'] as $answerText) {
+                                $insertAnswerSql = "INSERT INTO Answers (question_id, text) VALUES (?, ?)";
+                                if ($answerStmt = $mysqli->prepare($insertAnswerSql)) {
+                                    $answerStmt->bind_param("is", $question_id, $answerText);
+                                    $answerStmt->execute();
+                                    $answerStmt->close();
+                                } else {
+                                    throw new Exception("Failed to prepare answer insert statement: " . $mysqli->error);
+                                }
+                            }
+                        } else {
+                            throw new Exception("No answers provided for question: " . $questionText);
+                        }
+                    } else {
+                        throw new Exception("Failed to prepare question insert statement: " . $mysqli->error);
                     }
                 }
             }
             $mysqli->commit();  // Commit transaction
             header("location: admin.php"); // Redirect to admin page or a confirmation page
             exit;
+        } else {
+            throw new Exception("Failed to prepare survey insert statement: " . $mysqli->error);
         }
-    } catch (mysqli_sql_exception $e) {
+    } catch (Exception $e) {
         $mysqli->rollback(); // Rollback transaction on error
         $errorMessage = "Error: " . $e->getMessage();
     }
@@ -74,6 +85,17 @@ if (!empty($errorMessage)) {
     <meta charset="UTF-8">
     <title>Create Survey</title>
     <link rel="stylesheet" href="css/styles.css"> <!-- Make sure this path is correct -->
+    <style>
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-button-container {
+            align-self: flex-start;
+        }
+    </style>
     <script>
         function addQuestion() {
             var questionCount = document.querySelectorAll('fieldset').length + 1;
@@ -118,7 +140,12 @@ if (!empty($errorMessage)) {
 </head>
 <body>
     <div class="container">
-        <h1>Create Survey</h1>
+        <div class="header-container">
+            <h1>Create Survey</h1>
+            <div class="back-button-container">
+                <button onclick="window.location.href='admin.php'" class="btn">Back</button>
+            </div>
+        </div>
         <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="post">
             <div class="form-group">
                 <label for="title">Survey Title:</label>
@@ -127,7 +154,6 @@ if (!empty($errorMessage)) {
             <button type="button" onclick="addQuestion()" class="btn">Add Question</button>
             <div class="button-group">
                 <input type="submit" value="Create Survey" class="btn">
-                <button type="button" onclick="window.location.href='admin.php'" class="btn">Back</button>
             </div>
         </form>
     </div>

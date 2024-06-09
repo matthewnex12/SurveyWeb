@@ -46,6 +46,27 @@ foreach ($questions as $question_id => $question_data) {
     }
 }
 
+// Function to get a cookie value
+function getCookie($name) {
+    return isset($_COOKIE[$name]) ? $_COOKIE[$name] : null;
+}
+
+// Function to convert JSON string to PHP object
+function getObjectFromCookie($name) {
+    $cookieValue = getCookie($name);
+    return $cookieValue ? json_decode($cookieValue, true) : null;
+}
+
+// Load saved progress
+$savedProgress = getObjectFromCookie('surveyProgress_' . $survey_id);
+$savedAnswers = $savedProgress ? $savedProgress['answers'] : [];
+$savedAt = isset($savedProgress['savedAt']) ? $savedProgress['savedAt'] : 'Unknown time';
+
+if ($savedProgress) {
+    //echo '<pre>'; print_r($savedProgress); echo '</pre>'; // Debugging message
+    //echo "<p>Loaded progress from cookies saved at: " . htmlspecialchars($savedAt) . "</p>";
+}
+
 // Process form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $user_id = $_SESSION['id'];
@@ -57,6 +78,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $stmt->close();
         }
     }
+
+    // Load existing data from JSON file
+    $jsonFilePath = 'surveyCompletion.json';
+    $completionData = [];
+    if (file_exists($jsonFilePath)) {
+        $jsonContent = file_get_contents($jsonFilePath);
+        $completionData = json_decode($jsonContent, true);
+    }
+
+    // Update completion time
+    if (!isset($completionData[$user_id])) {
+        $completionData[$user_id] = [];
+    }
+    $completionData[$user_id][$survey_id] = date('Y-m-d H:i:s');
+
+    // Write data back to JSON file
+    file_put_contents($jsonFilePath, json_encode($completionData));
+
     header('Location: thankYou.php');
     exit;
 }
@@ -72,6 +111,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 </head>
 <body>
     <div class="container">
+        <?php if ($savedProgress): ?>
+            <div class="alert alert-info">
+                Survey progress loaded from cookies. Last saved at: <?php echo htmlspecialchars($savedAt); ?>
+            </div>
+        <?php endif; ?>
         <h1><?php echo htmlspecialchars($survey_title); ?></h1>
         <form method="post">
             <?php foreach ($questions as $question_id => $question_data): ?>
@@ -79,7 +123,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <legend><?php echo htmlspecialchars($question_data['question']); ?></legend>
                     <?php foreach ($question_data['answers'] as $answer_id => $answer_text): ?>
                         <label>
-                            <input type="radio" name="answers[<?php echo $question_id; ?>]" value="<?php echo $answer_id; ?>" required>
+                            <input type="radio" name="answers[<?php echo $question_id; ?>]" value="<?php echo $answer_id; ?>"
+                                <?php echo isset($savedAnswers["answers[$question_id]"]) && $savedAnswers["answers[$question_id]"] == $answer_id ? 'checked' : ''; ?> required>
                             <?php echo htmlspecialchars($answer_text); ?>
                         </label><br>
                     <?php endforeach; ?>
@@ -89,7 +134,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="submit" value="Submit" class="btn">
             </div>
         </form>
+        <button id="saveProgressButton" class="btn">Save Progress</button>
         <button onclick="window.history.back()" class="btn">Back</button>
+        <input type="hidden" id="surveyId" value="<?php echo $survey_id; ?>">
     </div>
+    <script src="saveProgress.js"></script>
 </body>
 </html>

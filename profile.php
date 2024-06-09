@@ -63,10 +63,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .back-button-container {
+            align-self: flex-start;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>My Profile</h1>
+        <div class="header-container">
+            <h1>My Profile</h1>
+            <div class="back-button-container">
+                <button onclick="window.location.href='userHome.php'" class="btn">Back</button>
+            </div>
+        </div>
         <p><strong>ID:</strong> <?php echo htmlspecialchars($user_id); ?></p>
         <p><strong>Username:</strong> <?php echo htmlspecialchars($username); ?></p>
         <p><strong>Email:</strong> <?php echo htmlspecialchars($email); ?></p>
@@ -92,7 +108,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <button type="submit">Update Profile</button>
             </div>
         </form>
-        <button onclick="window.location.href='userHome.php'">Back</button>
     </div>
 </body>
 </html>

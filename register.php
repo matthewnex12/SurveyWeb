@@ -12,6 +12,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Validate username
     if (empty(trim($_POST["username"]))) {
         $username_err = "Please enter a username.";
+    } elseif (!preg_match('/^[a-zA-Z0-9_]{3,20}$/', trim($_POST["username"]))) {
+        $username_err = "Username must be between 3 and 20 characters and can contain letters, numbers, and underscores only.";
     } else {
         // Prepare a select statement
         $sql = "SELECT id FROM users WHERE username = ?";
@@ -73,31 +75,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     // Validate password
-    if(empty(trim($_POST["password"]))){
+    if (empty(trim($_POST["password"]))) {
         $password_err = "Please enter a password.";     
-    } elseif(strlen(trim($_POST["password"])) < 6){
+    } elseif (strlen(trim($_POST["password"])) < 6) {
         $password_err = "Password must have at least 6 characters.";
-    } else{
+    } elseif (!preg_match('/[A-Z]/', trim($_POST["password"]))) {
+        $password_err = "Password must contain at least one uppercase letter.";
+    } elseif (!preg_match('/[a-z]/', trim($_POST["password"]))) {
+        $password_err = "Password must contain at least one lowercase letter.";
+    } elseif (!preg_match('/[0-9]/', trim($_POST["password"]))) {
+        $password_err = "Password must contain at least one number.";
+    } else {
         $password = trim($_POST["password"]);
     }
 
     // Validate confirm password
-    if(empty(trim($_POST["confirm_password"]))){
+    if (empty(trim($_POST["confirm_password"]))) {
         $confirm_password_err = "Please confirm password.";     
-    } else{
+    } else {
         $confirm_password = trim($_POST["confirm_password"]);
-        if(empty($password_err) && ($password != $confirm_password)){
+        if (empty($password_err) && ($password != $confirm_password)) {
             $confirm_password_err = "Password did not match.";
         }
     }
     
     // Check input errors before inserting in database
-    if(empty($username_err) && empty($email_err) && empty($password_err) && empty($confirm_password_err)){
+    if (empty($username_err) && empty($email_err) && empty($password_err) && empty($confirm_password_err)) {
         
         // Prepare an insert statement
         $sql = "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)";
      
-        if($stmt = $mysqli->prepare($sql)){
+        if ($stmt = $mysqli->prepare($sql)) {
             // Bind variables to the prepared statement as parameters
             $stmt->bind_param("sss", $param_username, $param_email, $param_password);
 
@@ -107,10 +115,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $param_password = password_hash($password, PASSWORD_DEFAULT); // Creates a password hash
 
             // Attempt to execute the prepared statement
-            if($stmt->execute()){
+            if ($stmt->execute()) {
                 // Redirect to login page
                 header("location: login.php");
-            } else{
+            } else {
                 echo "Oops! Something went wrong. Please try again later.";
             }
 
@@ -131,12 +139,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up</title>
     <link rel="stylesheet" href="css/styles.css"> <!-- Ensure this path is correct -->
+    <script>
+        function validateForm() {
+            var username = document.forms["registerForm"]["username"].value;
+            var email = document.forms["registerForm"]["email"].value;
+            var password = document.forms["registerForm"]["password"].value;
+            var confirm_password = document.forms["registerForm"]["confirm_password"].value;
+            var usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;
+            var emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+            var passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/;
+
+            if (!usernamePattern.test(username)) {
+                alert("Username must be between 3 and 20 characters and can contain letters, numbers, and underscores only.");
+                return false;
+            }
+            if (!emailPattern.test(email)) {
+                alert("Invalid email format.");
+                return false;
+            }
+            if (!passwordPattern.test(password)) {
+                alert("Password must be at least 6 characters long and contain at least one uppercase letter, one lowercase letter, and one number.");
+                return false;
+            }
+            if (password !== confirm_password) {
+                alert("Passwords do not match.");
+                return false;
+            }
+            return true;
+        }
+    </script>
 </head>
 <body>
     <div class="container">
         <h2>Sign Up</h2>
         <p>Please fill this form to create an account.</p>
-        <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
+        <form name="registerForm" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" onsubmit="return validateForm()">
             <div class="form-group">
                 <label>Username</label>
                 <input type="text" name="username" value="<?php echo htmlspecialchars($username); ?>">

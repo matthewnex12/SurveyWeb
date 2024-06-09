@@ -72,6 +72,35 @@ $view_surveys = fetchAllSurveys($mysqli);
             background-color: #007BFF;
             color: white;
         }
+        #searchBar, #searchSurveyBar, #searchEditSurveyBar {
+            width: calc(100% - 22px); /* Match the width of the scrollable container, minus padding and border */
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .button-group button {
+            flex: 1 1 auto;
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .button-group button:hover {
+            background-color: #0056b3;
+        }
     </style>
     <script>
         function showSection(sectionId) {
@@ -81,6 +110,64 @@ $view_surveys = fetchAllSurveys($mysqli);
             });
             document.getElementById(sectionId).classList.remove('hidden');
         }
+
+        function filterUsers() {
+            var input, filter, table, rows, username, email, i;
+            input = document.getElementById('searchBar');
+            filter = input.value.toUpperCase();
+            table = document.getElementById('userTable');
+            rows = table.getElementsByTagName('tr');
+
+            for (i = 1; i < rows.length; i++) {
+                username = rows[i].getElementsByTagName('td')[1];
+                email = rows[i].getElementsByTagName('td')[2];
+                if (username || email) {
+                    if (username.innerHTML.toUpperCase().includes(filter) || email.innerHTML.toUpperCase().includes(filter)) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function filterSurveys() {
+            var input, filter, table, rows, title, i;
+            input = document.getElementById('searchSurveyBar');
+            filter = input.value.toUpperCase();
+            table = document.getElementById('surveyTable');
+            rows = table.getElementsByTagName('tr');
+
+            for (i = 1; i < rows.length; i++) {
+                title = rows[i].getElementsByTagName('td')[1];
+                if (title) {
+                    if (title.innerHTML.toUpperCase().includes(filter)) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+        }
+
+        function filterEditSurveys() {
+            var input, filter, table, rows, title, i;
+            input = document.getElementById('searchEditSurveyBar');
+            filter = input.value.toUpperCase();
+            table = document.getElementById('editSurveyTable');
+            rows = table.getElementsByTagName('tr');
+
+            for (i = 1; i < rows.length; i++) {
+                title = rows[i].getElementsByTagName('td')[1];
+                if (title) {
+                    if (title.innerHTML.toUpperCase().includes(filter)) {
+                        rows[i].style.display = "";
+                    } else {
+                        rows[i].style.display = "none";
+                    }
+                }
+            }
+        }
     </script>
 </head>
 <body>
@@ -88,16 +175,19 @@ $view_surveys = fetchAllSurveys($mysqli);
         <h1>Admin Dashboard</h1>
         <h2>Welcome, <?php echo htmlspecialchars($_SESSION["username"]); ?>!</h2>
         
-        <button onclick="showSection('edit-surveys')">Edit Existing Surveys</button>
-        <button onclick="window.location.href='createSurvey.php'">Create a New Survey</button>
-        <button onclick="showSection('manage-users')">Users</button>
-        <button onclick="showSection('view-surveys')">View Surveys</button>
-        <button onclick="window.location.href='logoutHandler.php'">Log out</button>
+        <div class="button-group">
+            <button onclick="showSection('edit-surveys')">Edit Existing Surveys</button>
+            <button onclick="window.location.href='createSurvey.php'">Create a New Survey</button>
+            <button onclick="showSection('manage-users')">Users</button>
+            <button onclick="showSection('view-surveys')">View Surveys</button>
+            <button onclick="window.location.href='logoutHandler.php'">Log out</button>
+        </div>
 
         <div id="edit-surveys" class="section hidden">
             <h2>Edit Existing Surveys</h2>
+            <input type="text" id="searchEditSurveyBar" onkeyup="filterEditSurveys()" placeholder="Search by survey title">
             <div class="scrollable-container">
-                <table class="survey-table">
+                <table class="survey-table" id="editSurveyTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -107,7 +197,7 @@ $view_surveys = fetchAllSurveys($mysqli);
                     </thead>
                     <tbody>
                         <?php while ($survey = $edit_surveys->fetch_assoc()): ?>
-                        <tr>
+                        <tr class="survey-item">
                             <td><?php echo $survey['id']; ?></td>
                             <td><?php echo htmlspecialchars($survey['title']); ?></td>
                             <td>
@@ -122,13 +212,9 @@ $view_surveys = fetchAllSurveys($mysqli);
 
         <div id="manage-users" class="section hidden">
             <h2>Users</h2>
-            <form method="get">
-                <input type="text" name="search" placeholder="Search by username or email" value="<?php echo isset($_GET['search']) ? htmlspecialchars($_GET['search']) : ''; ?>">
-                <input type="submit" value="Search">
-                <span class="error-message"><?php echo $search_error; ?></span>
-            </form>
+            <input type="text" id="searchBar" onkeyup="filterUsers()" placeholder="Search by username or email">
             <div class="scrollable-container">
-                <table class="user-table">
+                <table class="user-table" id="userTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -139,10 +225,10 @@ $view_surveys = fetchAllSurveys($mysqli);
                     </thead>
                     <tbody>
                         <?php while ($user = $users->fetch_assoc()): ?>
-                        <tr>
+                        <tr class="user-item">
                             <td><?php echo $user['id']; ?></td>
-                            <td id="username_<?php echo $user['id']; ?>"><?php echo htmlspecialchars($user['username']); ?></td>
-                            <td id="email_<?php echo $user['id']; ?>"><?php echo htmlspecialchars($user['email']); ?></td>
+                            <td><?php echo htmlspecialchars($user['username']); ?></td>
+                            <td><?php echo htmlspecialchars($user['email']); ?></td>
                             <td>
                                 <button type="button" onclick="window.location.href='viewUser.php?id=<?php echo $user['id']; ?>'">View</button>
                             </td>
@@ -155,8 +241,9 @@ $view_surveys = fetchAllSurveys($mysqli);
 
         <div id="view-surveys" class="section hidden">
             <h2>View Surveys</h2>
+            <input type="text" id="searchSurveyBar" onkeyup="filterSurveys()" placeholder="Search by survey title">
             <div class="scrollable-container">
-                <table class="survey-table">
+                <table class="survey-table" id="surveyTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -166,7 +253,7 @@ $view_surveys = fetchAllSurveys($mysqli);
                     </thead>
                     <tbody>
                         <?php while ($survey = $view_surveys->fetch_assoc()): ?>
-                        <tr>
+                        <tr class="survey-item">
                             <td><?php echo $survey['id']; ?></td>
                             <td><?php echo htmlspecialchars($survey['title']); ?></td>
                             <td>
